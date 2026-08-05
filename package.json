@@ -1,7 +1,7 @@
 {
-  "name": "minecraft-render-bot",
+  "name": "minecraft-stealth-bot",
   "version": "1.0.0",
-  "description": "24/7 Minecraft Bot with Dummy Express Web Server for Render",
+  "description": "24/7 Anti-AFK Minecraft Bot with Keep-Alive Web Server for Render",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
