@@ -33,15 +33,22 @@ const config = {
     host: process.env.SERVER_HOST || 'node-de-free-01.tickhosting.com',
     port: parseInt(process.env.SERVER_PORT || '50589'),
     username: process.env.BOT_USERNAME || 'dma9',
-    version: process.env.MC_VERSION || '1.20.4',
+    version: false, // يتعرف تلقائياً على إصدار السيرفر لتفادي الرفض
     auth: process.env.AUTH_TYPE || 'offline'
 };
 
 let bot = null;
 
 function createBot() {
-    console.log('[SYSTEM] Connecting to server...');
-    bot = mineflayer.createBot(config);
+    console.log(`[SYSTEM] Connecting to ${config.host}:${config.port}...`);
+    
+    try {
+        bot = mineflayer.createBot(config);
+    } catch (err) {
+        console.log(`[INIT ERROR] Failed to create bot instance: ${err.message}`);
+        setTimeout(createBot, 10000);
+        return;
+    }
 
     bot.once('spawn', () => {
         console.log(`[SUCCESS] Bot "${bot.username}" connected successfully.`);
@@ -52,7 +59,6 @@ function createBot() {
     // 3. محرك الحركة الذكي وتجاوز حماية Anti-AFK
     // ==========================================================
     function startSmartAntiAFK() {
-        // حركات غير منتظمة بفترات زمنية عشوائية لتفادي أنظمة الكشف التلقائي
         function scheduleNextAction() {
             if (!bot || !bot.entity) return;
 
@@ -66,13 +72,11 @@ function createBot() {
                     break;
 
                 case 'sneak':
-                    // الجلوس / الانحناء لمدات متغيرة
                     bot.setControlState('sneak', true);
                     setTimeout(() => bot.setControlState('sneak', false), 1000 + Math.random() * 1500);
                     break;
 
                 case 'walkStep':
-                    // خطوة صغيرة للأمام والخلف لتنشيط إحداثيات الموقع
                     const direction = Math.random() > 0.5 ? 'forward' : 'back';
                     bot.setControlState(direction, true);
                     setTimeout(() => {
@@ -81,19 +85,16 @@ function createBot() {
                     break;
 
                 case 'lookAround':
-                    // التفات الرأس بزوايا بشرية واقعية
                     const randomYaw = (Math.random() * 360 - 180) * (Math.PI / 180);
                     const randomPitch = (Math.random() * 60 - 30) * (Math.PI / 180);
                     bot.look(randomYaw, randomPitch, true);
                     break;
 
                 case 'swingArm':
-                    // تحريك اليد (Left Click Action)
                     bot.swingArm('mainhand');
                     break;
             }
 
-            // تحديد موعد الحركة القادمة بشكل عشوائي بين 12 إلى 35 ثانية
             const nextInterval = 12000 + Math.floor(Math.random() * 23000);
             setTimeout(scheduleNextAction, nextInterval);
         }
@@ -102,7 +103,7 @@ function createBot() {
     }
 
     // ==========================================================
-    // 4. نظام إعادة الإحياء التلقائي وإعادة الاتصال
+    // 4. معالجة الأخطاء وطباعتها بالتفصيل
     // ==========================================================
     bot.on('death', () => {
         console.log('[PHYSICS] Bot died. Respawning...');
@@ -112,15 +113,15 @@ function createBot() {
     });
 
     bot.on('kicked', (reason) => {
-        console.log(`[KICKED] Reason: ${reason}`);
+        console.log(`[KICKED REASON] ${JSON.stringify(reason)}`);
     });
 
     bot.on('error', (err) => {
-        console.log(`[ERROR] ${err.message}`);
+        console.log(`[CONNECTION ERROR] ${err.code || err.message}`);
     });
 
-    bot.on('end', () => {
-        console.log('[DISCONNECT] Reconnecting in 10 seconds...');
+    bot.on('end', (reason) => {
+        console.log(`[DISCONNECT] Disconnected (${reason || 'Unknown'}). Reconnecting in 10 seconds...`);
         bot.removeAllListeners();
         setTimeout(createBot, 10000);
     });
