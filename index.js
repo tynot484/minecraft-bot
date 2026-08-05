@@ -2,7 +2,7 @@ const express = require('express');
 const mineflayer = require('mineflayer');
 
 // ==========================================================
-// 1. سيرفر الويب لإبقاء الخدمة حية
+// 1. خادم الويب للإبقاء على الخدمة نشطة على Render
 // ==========================================================
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,12 +10,10 @@ const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.status(200).send('dma9 Bot 24/7 Online'));
 app.get('/ping', (req, res) => res.status(200).send('PONG'));
 
-app.listen(PORT, () => {
-    console.log(`[WEB SERVER] Keep-alive server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`[WEB SERVER] Running on port ${PORT}`));
 
 // ==========================================================
-// 2. إعدادات الخادم والحساب
+// 2. إعدادات البوت
 // ==========================================================
 const config = {
     host: process.env.SERVER_HOST || 'node-de-free-01.tickhosting.com',
@@ -27,13 +25,13 @@ const config = {
 
 let bot = null;
 let afkInterval = null;
+let stuckCheckInterval = null;
+let lastPosition = null;
 let reconnectAttempts = 0;
 
 function createBot() {
-    // تنظيف الجلسة القديمة والذاكرة لمنع Over Memory
     cleanUp();
-
-    console.log(`[CONNECTING] Attempting to connect to ${config.host}:${config.port}...`);
+    console.log(`[CONNECTING] Connecting to ${config.host}:${config.port}...`);
 
     try {
         bot = mineflayer.createBot(config);
@@ -44,13 +42,48 @@ function createBot() {
     }
 
     bot.once('spawn', () => {
-        console.log(`[ONLINE] Bot "${bot.username}" joined successfully!`);
-        reconnectAttempts = 0; // إعادة ضبط عداد المحاولات عند النجاح
+        console.log(`[ONLINE] Bot "${bot.username}" joined! Anti-Stuck & Movement Active.`);
+        reconnectAttempts = 0;
         startRealisticBehavior();
+        startStuckDetector();
     });
 
     // ==========================================================
-    // 3. الحركة الذكية والواقعية
+    // 3. نظام كشف الانحشار والقفز الفوري (Anti-Stuck Engine)
+    // ==========================================================
+    function startStuckDetector() {
+        if (stuckCheckInterval) clearInterval(stuckCheckInterval);
+
+        stuckCheckInterval = setInterval(() => {
+            if (!bot || !bot.entity) return;
+
+            const currentPos = bot.entity.position;
+
+            // إذا كان البوت يحاول التقدم ولكن موقعه ثابت (أقل من 0.2 بلوكة)
+            if (lastPosition && bot.controlState.forward) {
+                const distanceMoved = currentPos.distanceTo(lastPosition);
+
+                if (distanceMoved < 0.2) {
+                    console.log('[UNSTUCK] Obstacle detected! Sprinting & Jumping...');
+                    // تفعيل الجري والقفز معاً لتخطي الحافة أو البلوكة
+                    bot.setControlState('sprint', true);
+                    bot.setControlState('jump', true);
+
+                    setTimeout(() => {
+                        if (bot) {
+                            bot.setControlState('jump', false);
+                            bot.setControlState('sprint', false);
+                        }
+                    }, 800);
+                }
+            }
+
+            lastPosition = currentPos.clone();
+        }, 500); // يفحص كل نصف ثانية
+    }
+
+    // ==========================================================
+    // 4. محرك الحركة الواقعية
     // ==========================================================
     function startRealisticBehavior() {
         if (afkInterval) clearInterval(afkInterval);
@@ -67,7 +100,8 @@ function createBot() {
                 case 'circle':
                     bot.setControlState('forward', true);
                     bot.setControlState('right', true);
-                    setTimeout(clearControls, 1500);
+                    if (Math.random() > 0.4) bot.setControlState('sprint', true);
+                    setTimeout(clearControls, 2000);
                     break;
 
                 case 'follow':
@@ -75,10 +109,11 @@ function createBot() {
                     if (player) {
                         bot.lookAt(player.position.offset(0, player.height, 0), true);
                         bot.setControlState('forward', true);
-                        setTimeout(clearControls, 1500);
+                        setTimeout(clearControls, 2000);
                     } else {
                         bot.look((Math.random() * 360 - 180) * (Math.PI / 180), 0, true);
-                        setTimeout(clearControls, 1000);
+                        bot.setControlState('forward', true);
+                        setTimeout(clearControls, 1200);
                     }
                     break;
 
@@ -86,20 +121,20 @@ function createBot() {
                     bot.look((Math.random() * 360 - 180) * (Math.PI / 180), 0, true);
                     bot.setControlState('jump', true);
                     bot.swingArm('mainhand');
-                    setTimeout(clearControls, 500);
+                    setTimeout(clearControls, 600);
                     break;
 
                 case 'sneakAround':
                     bot.setControlState('sneak', true);
                     bot.swingArm('mainhand');
-                    setTimeout(clearControls, 1000);
+                    setTimeout(clearControls, 1200);
                     break;
             }
         }, 3000);
     }
 
     // ==========================================================
-    // 4. معالجة الأحداث والأخطاء
+    // 5. الأحداث وإعادة الاتصال الذكي
     // ==========================================================
     bot.on('death', () => {
         console.log('[DEATH] Respawning...');
@@ -109,7 +144,7 @@ function createBot() {
     bot.on('kicked', (reason) => console.log(`[KICKED] ${JSON.stringify(reason)}`));
     bot.on('error', (err) => console.log(`[ERROR] ${err.message}`));
     bot.on('end', () => {
-        console.log('[DISCONNECT] Connection closed.');
+        console.log('[DISCONNECT] Reconnecting...');
         handleReconnect();
     });
 }
@@ -121,6 +156,8 @@ function clearControls() {
 
 function cleanUp() {
     if (afkInterval) clearInterval(afkInterval);
+    if (stuckCheckInterval) clearInterval(stuckCheckInterval);
+    lastPosition = null;
     if (bot) {
         bot.removeAllListeners();
         bot = null;
@@ -130,11 +167,8 @@ function cleanUp() {
 function handleReconnect() {
     cleanUp();
     reconnectAttempts++;
-
-    // زيادة زمن الانتظار تدريجياً لمنع إغلاق Render (من 5 ثوانٍ حتى 30 ثانية كحد أقصى)
-    const delay = Math.min(5000 * reconnectAttempts, 30000);
-    console.log(`[RECONNECT] Reconnecting in ${delay / 1000} seconds (Attempt ${reconnectAttempts})...`);
-    
+    const delay = Math.min(4000 * reconnectAttempts, 30000);
+    console.log(`[RECONNECT] Waiting ${delay / 1000}s...`);
     setTimeout(createBot, delay);
 }
 
