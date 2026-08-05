@@ -2,19 +2,16 @@ const express = require('express');
 const mineflayer = require('mineflayer');
 
 // ==========================================================
-// 1. خادم الويب الوهمي لمنع إغلاق الخدمة على Render
+// 1. سيرفر الويب لإبقاء الخدمة حية
 // ==========================================================
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => {
-    res.send('dma9 24/7 Active Bot with Realistic Human Behavior');
-});
-
+app.get('/', (req, res) => res.status(200).send('dma9 Bot 24/7 Online'));
 app.get('/ping', (req, res) => res.status(200).send('PONG'));
 
 app.listen(PORT, () => {
-    console.log(`[WEB SERVER] Running on port ${PORT}`);
+    console.log(`[WEB SERVER] Keep-alive server running on port ${PORT}`);
 });
 
 // ==========================================================
@@ -24,142 +21,121 @@ const config = {
     host: process.env.SERVER_HOST || 'node-de-free-01.tickhosting.com',
     port: parseInt(process.env.SERVER_PORT || '50589'),
     username: process.env.BOT_USERNAME || 'dma9',
-    version: false, // التعرف التلقائي على إصدار ماينكرافت
+    version: false,
     auth: process.env.AUTH_TYPE || 'offline'
 };
 
 let bot = null;
-let isReconnecting = false;
 let afkInterval = null;
-const RECONNECT_DELAY = 3000; // إعادة الاتصال خلال 3 ثوانٍ
+let reconnectAttempts = 0;
 
 function createBot() {
-    isReconnecting = false;
-    console.log(`[CONNECTING] Connecting to ${config.host}:${config.port}...`);
+    // تنظيف الجلسة القديمة والذاكرة لمنع Over Memory
+    cleanUp();
 
-    bot = mineflayer.createBot(config);
+    console.log(`[CONNECTING] Attempting to connect to ${config.host}:${config.port}...`);
+
+    try {
+        bot = mineflayer.createBot(config);
+    } catch (err) {
+        console.log(`[INIT ERROR] ${err.message}`);
+        handleReconnect();
+        return;
+    }
 
     bot.once('spawn', () => {
-        console.log(`[ONLINE] Bot "${bot.username}" joined! Realistic movement active.`);
+        console.log(`[ONLINE] Bot "${bot.username}" joined successfully!`);
+        reconnectAttempts = 0; // إعادة ضبط عداد المحاولات عند النجاح
         startRealisticBehavior();
     });
 
     // ==========================================================
-    // 3. نظام الحركة الواقعية (دائرة، تتبع، قفز، تفاعل)
+    // 3. الحركة الذكية والواقعية
     // ==========================================================
-    function clearControls() {
-        if (!bot) return;
-        const states = ['forward', 'back', 'left', 'right', 'jump', 'sneak', 'sprint'];
-        states.forEach(state => bot.setControlState(state, false));
-    }
-
     function startRealisticBehavior() {
         if (afkInterval) clearInterval(afkInterval);
 
-        // تنفيـذ حركة كل 2.5 إلى 4 ثوانٍ لضمان عدم التوقف
         afkInterval = setInterval(() => {
             if (!bot || !bot.entity) return;
 
             clearControls();
 
-            const behaviors = ['circle', 'follow', 'jumpLook', 'sneakAround', 'swingStep'];
+            const behaviors = ['circle', 'follow', 'jumpLook', 'sneakAround'];
             const chosen = behaviors[Math.floor(Math.random() * behaviors.length)];
 
             switch (chosen) {
                 case 'circle':
-                    // المشي أو الركض في شكل دائري
                     bot.setControlState('forward', true);
                     bot.setControlState('right', true);
-                    if (Math.random() > 0.4) bot.setControlState('sprint', true);
-
-                    setTimeout(() => clearControls(), 2000 + Math.random() * 1000);
+                    setTimeout(clearControls, 1500);
                     break;
 
                 case 'follow':
-                    // البحث عن أقرب لاعب ومتابعته
-                    const playerFilter = e => e.type === 'player' && e.username !== bot.username && e.position.distanceTo(bot.entity.position) < 20;
-                    const targetPlayer = bot.nearestEntity(playerFilter);
-
-                    if (targetPlayer) {
-                        bot.lookAt(targetPlayer.position.offset(0, targetPlayer.height, 0), true);
+                    const player = bot.nearestEntity(e => e.type === 'player' && e.username !== bot.username);
+                    if (player) {
+                        bot.lookAt(player.position.offset(0, player.height, 0), true);
                         bot.setControlState('forward', true);
-                        if (Math.random() > 0.5) bot.setControlState('jump', true);
-
-                        setTimeout(() => clearControls(), 2000 + Math.random() * 1000);
+                        setTimeout(clearControls, 1500);
                     } else {
-                        // إذا لم يوجد لاعب، يلتفت ويمشي خطوتين
                         bot.look((Math.random() * 360 - 180) * (Math.PI / 180), 0, true);
-                        bot.setControlState('forward', true);
-                        setTimeout(() => clearControls(), 1500);
+                        setTimeout(clearControls, 1000);
                     }
                     break;
 
                 case 'jumpLook':
-                    // قفز مع التفات الرأس بمرونة كشخص حقيقي
-                    const yaw = (Math.random() * 360 - 180) * (Math.PI / 180);
-                    const pitch = (Math.random() * 60 - 30) * (Math.PI / 180);
-                    bot.look(yaw, pitch, true);
+                    bot.look((Math.random() * 360 - 180) * (Math.PI / 180), 0, true);
                     bot.setControlState('jump', true);
                     bot.swingArm('mainhand');
-
-                    setTimeout(() => clearControls(), 600);
+                    setTimeout(clearControls, 500);
                     break;
 
                 case 'sneakAround':
-                    // الانحناء (Shift) وتحريك اليد
                     bot.setControlState('sneak', true);
                     bot.swingArm('mainhand');
-                    setTimeout(() => clearControls(), 1000 + Math.random() * 800);
-                    break;
-
-                case 'swingStep':
-                    // الرجوع للخلف وضربه في الهواء
-                    bot.swingArm('mainhand');
-                    bot.setControlState('back', true);
-                    setTimeout(() => clearControls(), 700);
+                    setTimeout(clearControls, 1000);
                     break;
             }
-        }, 2500 + Math.random() * 1500);
+        }, 3000);
     }
 
     // ==========================================================
-    // 4. معالجة السقوط والانقطاع والموت
+    // 4. معالجة الأحداث والأخطاء
     // ==========================================================
     bot.on('death', () => {
-        console.log('[DEATH] Bot died. Respawning in 1s...');
-        setTimeout(() => {
-            if (bot) bot.respawn();
-        }, 1000);
+        console.log('[DEATH] Respawning...');
+        setTimeout(() => { if (bot) bot.respawn(); }, 1000);
     });
 
-    bot.on('kicked', (reason) => {
-        console.log(`[KICKED] Reason: ${JSON.stringify(reason)}`);
-    });
-
-    bot.on('error', (err) => {
-        console.log(`[ERROR] ${err.message}`);
-    });
-
-    bot.on('end', (reason) => {
-        if (afkInterval) clearInterval(afkInterval);
-        console.log(`[DISCONNECT] Reason: ${reason}`);
-        reconnect();
+    bot.on('kicked', (reason) => console.log(`[KICKED] ${JSON.stringify(reason)}`));
+    bot.on('error', (err) => console.log(`[ERROR] ${err.message}`));
+    bot.on('end', () => {
+        console.log('[DISCONNECT] Connection closed.');
+        handleReconnect();
     });
 }
 
-function reconnect() {
-    if (isReconnecting) return;
-    isReconnecting = true;
+function clearControls() {
+    if (!bot) return;
+    ['forward', 'back', 'left', 'right', 'jump', 'sneak', 'sprint'].forEach(s => bot.setControlState(s, false));
+}
 
+function cleanUp() {
     if (afkInterval) clearInterval(afkInterval);
     if (bot) {
         bot.removeAllListeners();
         bot = null;
     }
-
-    console.log(`[RECONNECTING] Retrying connection in ${RECONNECT_DELAY / 1000} seconds...`);
-    setTimeout(createBot, RECONNECT_DELAY);
 }
 
-// بدء التشغيل
+function handleReconnect() {
+    cleanUp();
+    reconnectAttempts++;
+
+    // زيادة زمن الانتظار تدريجياً لمنع إغلاق Render (من 5 ثوانٍ حتى 30 ثانية كحد أقصى)
+    const delay = Math.min(5000 * reconnectAttempts, 30000);
+    console.log(`[RECONNECT] Reconnecting in ${delay / 1000} seconds (Attempt ${reconnectAttempts})...`);
+    
+    setTimeout(createBot, delay);
+}
+
 createBot();
