@@ -24,7 +24,7 @@ const config = {
 };
 
 let bot = null;
-let afkInterval = null;
+let moveInterval = null;
 let reconnectAttempts = 0;
 
 function createBot() {
@@ -40,36 +40,69 @@ function createBot() {
     }
 
     bot.once('spawn', () => {
-        console.log(`[ONLINE] Bot "${bot.username}" joined successfully! Light Anti-AFK Active.`);
+        console.log(`[ONLINE] Bot "${bot.username}" joined! Balanced Smart Movement Active.`);
         reconnectAttempts = 0;
-        startLightAntiAFK();
+        startBalancedMovement();
     });
 
     // ==========================================================
-    // 3. نظام Anti-AFK خفيف لمنع ارتفاع البينج وطرد Vulcan
+    // 3. محرك الحركة المتوازن (تنقل حقيقي + قفز آلي + بينج منخفض)
     // ==========================================================
-    function startLightAntiAFK() {
-        if (afkInterval) clearInterval(afkInterval);
+    function startBalancedMovement() {
+        if (moveInterval) clearInterval(moveInterval);
 
-        afkInterval = setInterval(() => {
+        moveInterval = setInterval(() => {
             if (!bot || !bot.entity) return;
 
-            // 1. التفات خفيف للرأس (لا يستهلك معالج)
-            const yaw = (Math.random() * 360 - 180) * (Math.PI / 180);
-            const pitch = (Math.random() * 40 - 20) * (Math.PI / 180);
-            bot.look(yaw, pitch, true);
+            clearControls();
 
-            // 2. تحريك اليد (Swing Arm)
-            bot.swingArm('mainhand');
+            // 1. تغيير الاتجاه بشكل عشوائي للتحرك في مجالات مختلفة
+            const randomYaw = (Math.random() * 360 - 180) * (Math.PI / 180);
+            bot.look(randomYaw, 0, true);
 
-            // 3. قفزة خفيفة كل فترة عشوائية
-            if (Math.random() > 0.5) {
-                bot.setControlState('jump', true);
-                setTimeout(() => {
-                    if (bot) bot.setControlState('jump', false);
-                }, 300);
+            const actions = ['walkForward', 'circleWalk', 'sneakStep', 'jumpTurn'];
+            const chosen = actions[Math.floor(Math.random() * actions.length)];
+
+            switch (chosen) {
+                case 'walkForward':
+                    // مشي للأمام مع قفزة آلية لتجاوز البلوكات
+                    bot.setControlState('forward', true);
+                    if (Math.random() > 0.4) bot.setControlState('sprint', true);
+
+                    // قفزة أثناء المشي لتخطي الارتفاعات والعوائق
+                    setTimeout(() => {
+                        if (bot) {
+                            bot.setControlState('jump', true);
+                            setTimeout(() => { if (bot) bot.setControlState('jump', false); }, 300);
+                        }
+                    }, 500);
+
+                    setTimeout(clearControls, 2000);
+                    break;
+
+                case 'circleWalk':
+                    // مشي زاوي دائر يغير موقعه
+                    bot.setControlState('forward', true);
+                    bot.setControlState(Math.random() > 0.5 ? 'right' : 'left', true);
+                    setTimeout(clearControls, 1800);
+                    break;
+
+                case 'sneakStep':
+                    // انحناء (Shift) ومشي قصير مع ضرب اليد
+                    bot.setControlState('sneak', true);
+                    bot.setControlState('forward', true);
+                    bot.swingArm('mainhand');
+                    setTimeout(clearControls, 1200);
+                    break;
+
+                case 'jumpTurn':
+                    // قفزة وتصويب في اتجاه آخر
+                    bot.setControlState('jump', true);
+                    bot.swingArm('mainhand');
+                    setTimeout(clearControls, 400);
+                    break;
             }
-        }, 8000); // يعمل كل 8 ثوانٍ لتخفيف العبء تماماً على المعالج
+        }, 5000 + Math.random() * 2000); // حركة كل 5 إلى 7 ثوانٍ
     }
 
     // ==========================================================
@@ -77,23 +110,24 @@ function createBot() {
     // ==========================================================
     bot.on('death', () => {
         console.log('[DEATH] Respawning...');
-        setTimeout(() => { if (bot) bot.respawn(); }, 2000);
+        setTimeout(() => { if (bot) bot.respawn(); }, 1500);
     });
 
-    bot.on('kicked', (reason) => {
-        console.log(`[KICKED] Reason: ${JSON.stringify(reason)}`);
-    });
-
+    bot.on('kicked', (reason) => console.log(`[KICKED] ${JSON.stringify(reason)}`));
     bot.on('error', (err) => console.log(`[ERROR] ${err.message}`));
-
     bot.on('end', () => {
-        console.log('[DISCONNECT] Disconnected. Reconnecting...');
+        console.log('[DISCONNECT] Reconnecting...');
         handleReconnect();
     });
 }
 
+function clearControls() {
+    if (!bot) return;
+    ['forward', 'back', 'left', 'right', 'jump', 'sneak', 'sprint'].forEach(s => bot.setControlState(s, false));
+}
+
 function cleanUp() {
-    if (afkInterval) clearInterval(afkInterval);
+    if (moveInterval) clearInterval(moveInterval);
     if (bot) {
         bot.removeAllListeners();
         bot = null;
@@ -103,8 +137,8 @@ function cleanUp() {
 function handleReconnect() {
     cleanUp();
     reconnectAttempts++;
-    const delay = Math.min(5000 * reconnectAttempts, 30000);
-    console.log(`[RECONNECT] Waiting ${delay / 1000}s before reconnecting...`);
+    const delay = Math.min(4000 * reconnectAttempts, 30000);
+    console.log(`[RECONNECT] Waiting ${delay / 1000}s...`);
     setTimeout(createBot, delay);
 }
 
