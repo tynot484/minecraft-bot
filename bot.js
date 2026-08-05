@@ -5,7 +5,7 @@ const mineflayer = require('mineflayer');
 // 1. موقع الويب الوهمي لمنع إغلاق Render (Web Service Keep-Alive)
 // ==========================================================
 const app = express();
-const PORT = process.env.3000 || 3000;
+const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
     res.send(`
@@ -29,11 +29,11 @@ app.listen(PORT, () => {
 // 2. إعدادات خادم ماينكرافت والحساب
 // ==========================================================
 const config = {
-    host: process.env.node-de-free-01.tickhosting.com || 'YOUR_SERVER_IP', // ضع IP سيرفرك هنا
-    port: parseInt(process.env.50589 || '25565'),
-    username: process.env.dma9 || 'AdminBot',
-    version: process.env.1.21.11 || '1.20.4',
-    auth: process.env.offline || 'offline'
+    host: process.env.SERVER_HOST || 'node-de-free-01.tickhosting.com', // ضع IP سيرفرك هنا
+    port: parseInt(process.env.SERVER_PORT || '50589'),
+    username: process.env.BOT_USERNAME || 'dma9',
+    version: process.env.MC_VERSION || '1.21.11',
+    auth: process.env.AUTH_TYPE || 'offline'
 };
 
 let bot = null;
