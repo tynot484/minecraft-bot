@@ -12,7 +12,7 @@ app.get('/', (req, res) => {
         <html>
             <head><title>Minecraft Bot Status</title></head>
             <body style="background:#0f172a; color:#fff; font-family:sans-serif; text-align:center; padding-top:50px;">
-                <h1 style="color:#38bdf8;">Minecraft AdminBot is Online!</h1>
+                <h1 style="color:#38bdf8;">dma9 Bot is Online!</h1>
                 <p>Status: Keep-Alive Server is Active 24/7 on Render.</p>
             </body>
         </html>
@@ -29,10 +29,10 @@ app.listen(PORT, () => {
 // 2. إعدادات خادم ماينكرافت والحساب
 // ==========================================================
 const config = {
-    host: process.env.SERVER_HOST || 'node-de-free-01.tickhosting.com', // ضع IP سيرفرك هنا
+    host: process.env.SERVER_HOST || 'node-de-free-01.tickhosting.com',
     port: parseInt(process.env.SERVER_PORT || '50589'),
     username: process.env.BOT_USERNAME || 'dma9',
-    version: process.env.MC_VERSION || '1.21.11',
+    version: process.env.MC_VERSION || '1.20.4',
     auth: process.env.AUTH_TYPE || 'offline'
 };
 
@@ -50,7 +50,7 @@ function createBot() {
     // عند دخول البوت للعبة
     bot.once('spawn', () => {
         console.log(`[SUCCESS] Bot "${bot.username}" joined the server!`);
-        bot.chat('Hello everyone! AdminBot is now online to help and run events!');
+        bot.chat('3aslama el nas el kol! dma9 ma3akum, jit bash n3awankum w n3amlu el jaw bel fa3aliyat!');
 
         startAntiAFK();
         startAutoEvents();
@@ -60,7 +60,6 @@ function createBot() {
     // 3. نظام حماية ومحاكاة الحركة البشرية (Anti-Detection / Anti-AFK)
     // ==========================================================
     function startAntiAFK() {
-        // حركات عشوائية بأوقات متغيرة لتفادي كشف البوت
         setInterval(() => {
             if (!bot || !bot.entity) return;
 
@@ -86,14 +85,14 @@ function createBot() {
                     bot.lookAt(player.position.offset(0, player.height, 0));
                 }
             }
-        }, 30000 + Math.random() * 20000); // تتنفذ كل 30 إلى 50 ثانية بشكل عشوائي
+        }, 30000 + Math.random() * 20000);
     }
 
     // إعادة الإحياء التلقائي عند الموت
     bot.on('death', () => {
         setTimeout(() => {
             bot.respawn();
-            bot.chat('I am back!');
+            bot.chat('rja3tlkom ya jma3a! manish msallem!');
         }, 2000);
     });
 
@@ -101,28 +100,26 @@ function createBot() {
     // 4. نظام الفعاليات والأسئلة التلقائية والجوائز
     // ==========================================================
     function startAutoEvents() {
-        // فعالية كل 12 دقيقة
         setInterval(() => {
             if (activeEvent.isRunning) return;
 
             activeEvent.isRunning = true;
-            const eventType = Math.floor(Math.random() * 2); // 0: Math, 1: Typing
+            const eventType = Math.floor(Math.random() * 2);
 
             if (eventType === 0) {
                 const n1 = Math.floor(Math.random() * 50) + 10;
                 const n2 = Math.floor(Math.random() * 50) + 10;
                 activeEvent.answer = (n1 + n2).toString();
-                bot.chat(`[EVENT] Math Challenge! What is ${n1} + ${n2}? Fast answer wins $50,000 or a Crate Key!`);
+                bot.chat(`[EVENT] 7sebha fisa3! 9dash tetla3 ${n1} + ${n2}? Asra3 wa7ed yjawb yerba7 $50,000 wala mefta7 Crate!`);
             } else {
                 const chosenWord = wordsList[Math.floor(Math.random() * wordsList.length)];
                 activeEvent.answer = chosenWord;
-                bot.chat(`[EVENT] Speed Test! Type this word fast: "${chosenWord}" to win!`);
+                bot.chat(`[EVENT] Ta7addi el sor3a! Ekteb el kelma hedhi fisa3 bash terba7: "${chosenWord}"`);
             }
 
-            // وقت إضافي للفعالية (40 ثانية)
             activeEvent.timeout = setTimeout(() => {
                 if (activeEvent.isRunning) {
-                    bot.chat(`[EVENT] Time is up! Nobody answered correctly. Answer was: ${activeEvent.answer}`);
+                    bot.chat(`[EVENT] Wfa el wa9t w ma jawab 7ad sa7! El ijaba heya: ${activeEvent.answer}`);
                     resetEvent();
                 }
             }, 40000);
@@ -148,17 +145,16 @@ function createBot() {
         // فحص الفائز بالفعالية
         if (activeEvent.isRunning && activeEvent.answer) {
             if (cleanMessage.toUpperCase() === activeEvent.answer.toUpperCase()) {
-                bot.chat(`[EVENT] Winner! ${username} got it right!`);
+                bot.chat(`[EVENT] Ya3tik el sa7a ya ${username}! Jebtha sa7i7a!`);
                 
-                // إعطاء الجوائز تلقائياً باستخدام أوامر OP
                 const rewardType = Math.random() > 0.5 ? 'money' : 'key';
                 
                 if (rewardType === 'money') {
                     bot.chat(`/eco give ${username} 50000`);
-                    bot.chat(`[REWARD] Given $50,000 to ${username}!`);
+                    bot.chat(`[REWARD] Sabitlek $50,000 ya ${username}! Mabrouk 3lik!`);
                 } else {
                     bot.chat(`/crate key give ${username} common 1`);
-                    bot.chat(`[REWARD] Given 1x Crate Key to ${username}!`);
+                    bot.chat(`[REWARD] 3titek mefta7 Crate ya ${username}! Mabrouk 3lik!`);
                 }
 
                 resetEvent();
@@ -166,25 +162,25 @@ function createBot() {
             }
         }
 
-        // منع السبام: استجابة واحدة لكل لاعب كل 4 ثوانٍ
+        // منع السبام
         const now = Date.now();
         const lastMsgTime = userCooldowns.get(username) || 0;
         if (now - lastMsgTime < 4000) return;
         userCooldowns.set(username, now);
 
-        // تصحيح الأخطاء الشائعة في الأوامر (بلغة إنجليزية سهلة)
+        // تصحيح الأخطاء والتفاعل بالتونسي (Tounsi Franco/Arabizi)
         if (lowerMsg === 'spwn' || lowerMsg === 'spwan') {
-            bot.chat(`Hey ${username}, did you mean /spawn? Type "/spawn" to go to spawn!`);
+            bot.chat(`Ya ${username} thabet rou7ek, t9asd /spawn? Ekteb "/spawn" w tawa tmshi lel spawn!`);
         } else if (lowerMsg === 'shopp' || lowerMsg === 'sop') {
-            bot.chat(`Hey ${username}, did you mean /shop? Type "/shop" to open market!`);
+            bot.chat(`Ya ${username} t7eb t7el el market? Ekteb "/shop" bash teshri w tbi3!`);
         } else if (lowerMsg === 'rtpp' || lowerMsg === 'wildd') {
-            bot.chat(`Hey ${username}, did you mean /rtp? Type "/rtp" to teleport to wild!`);
+            bot.chat(`Ya ${username} t7eb t5roj lel barriya? Ekteb "/rtp" w tawa ttir l blasa b3ida!`);
         } else if (lowerMsg === 'balence' || lowerMsg === 'balanc') {
-            bot.chat(`Hey ${username}, type "/bal" to check your money balance!`);
-        } else if (lowerMsg.includes('how to get money')) {
-            bot.chat(`${username}, you can get money by /jobs or selling items in /shop!`);
-        } else if (lowerMsg === 'hi adminbot' || lowerMsg === 'hello adminbot') {
-            bot.chat(`Hello ${username}! Nice to see you! Type /help if you need info.`);
+            bot.chat(`Ya ${username} ekteb "/bal" bash tshouf flousek 9dash!`);
+        } else if (lowerMsg.includes('how to get money') || lowerMsg.includes('kifash njib flous')) {
+            bot.chat(`${username}, tnedjem tdabel el flous 3an 7saab /jobs wala tbi3 sel3tek fi /shop!`);
+        } else if (lowerMsg === 'hi dma9' || lowerMsg === 'hello dma9' || lowerMsg === '3aslama dma9') {
+            bot.chat(`Ya3ishek ya ${username}! Mar7ba bik, kan t7a9 ay 7aja es2el fi el chat!`);
         }
     });
 
