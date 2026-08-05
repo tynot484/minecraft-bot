@@ -27,6 +27,7 @@ let bot = null;
 let afkInterval = null;
 let stuckCheckInterval = null;
 let lastPosition = null;
+let isUnsticking = false;
 let reconnectAttempts = 0;
 
 function createBot() {
@@ -42,30 +43,38 @@ function createBot() {
     }
 
     bot.once('spawn', () => {
-        console.log(`[ONLINE] Bot "${bot.username}" joined! Anti-Stuck & Movement Active.`);
+        console.log(`[ONLINE] Bot "${bot.username}" joined! Smart Jump & Unstuck Active.`);
         reconnectAttempts = 0;
         startRealisticBehavior();
         startStuckDetector();
     });
 
     // ==========================================================
-    // 3. نظام كشف الانحشار والقفز الفوري (Anti-Stuck Engine)
+    // 3. نظام كشف الانحشار والقفز المستمر مع تغيير الاتجاه
     // ==========================================================
     function startStuckDetector() {
         if (stuckCheckInterval) clearInterval(stuckCheckInterval);
 
         stuckCheckInterval = setInterval(() => {
-            if (!bot || !bot.entity) return;
+            if (!bot || !bot.entity || isUnsticking) return;
 
             const currentPos = bot.entity.position;
 
-            // إذا كان البوت يحاول التقدم ولكن موقعه ثابت (أقل من 0.2 بلوكة)
+            // إذا كان يحاول التقدم ولكن لم يتحرك مسافة كافية
             if (lastPosition && bot.controlState.forward) {
                 const distanceMoved = currentPos.distanceTo(lastPosition);
 
-                if (distanceMoved < 0.2) {
-                    console.log('[UNSTUCK] Obstacle detected! Sprinting & Jumping...');
-                    // تفعيل الجري والقفز معاً لتخطي الحافة أو البلوكة
+                if (distanceMoved < 0.25) {
+                    isUnsticking = true;
+                    console.log('[UNSTUCK] Obstacle detected! Turning & Continuous Jumping...');
+
+                    // 1. التفات بزاوية عشوائية لتفادي الجدار
+                    const randomTurn = (Math.random() > 0.5 ? 1 : -1) * (Math.PI / 3);
+                    const currentYaw = bot.entity.yaw;
+                    bot.look(currentYaw + randomTurn, 0, true);
+
+                    // 2. قفز وجري مستمر مع التقدم لمدة 1.5 ثانية
+                    bot.setControlState('forward', true);
                     bot.setControlState('sprint', true);
                     bot.setControlState('jump', true);
 
@@ -74,12 +83,13 @@ function createBot() {
                             bot.setControlState('jump', false);
                             bot.setControlState('sprint', false);
                         }
-                    }, 800);
+                        isUnsticking = false;
+                    }, 1500);
                 }
             }
 
             lastPosition = currentPos.clone();
-        }, 500); // يفحص كل نصف ثانية
+        }, 800);
     }
 
     // ==========================================================
@@ -89,7 +99,7 @@ function createBot() {
         if (afkInterval) clearInterval(afkInterval);
 
         afkInterval = setInterval(() => {
-            if (!bot || !bot.entity) return;
+            if (!bot || !bot.entity || isUnsticking) return;
 
             clearControls();
 
@@ -100,8 +110,8 @@ function createBot() {
                 case 'circle':
                     bot.setControlState('forward', true);
                     bot.setControlState('right', true);
-                    if (Math.random() > 0.4) bot.setControlState('sprint', true);
-                    setTimeout(clearControls, 2000);
+                    if (Math.random() > 0.3) bot.setControlState('sprint', true);
+                    setTimeout(clearControls, 2200);
                     break;
 
                 case 'follow':
@@ -109,6 +119,7 @@ function createBot() {
                     if (player) {
                         bot.lookAt(player.position.offset(0, player.height, 0), true);
                         bot.setControlState('forward', true);
+                        if (Math.random() > 0.5) bot.setControlState('jump', true);
                         setTimeout(clearControls, 2000);
                     } else {
                         bot.look((Math.random() * 360 - 180) * (Math.PI / 180), 0, true);
@@ -119,9 +130,10 @@ function createBot() {
 
                 case 'jumpLook':
                     bot.look((Math.random() * 360 - 180) * (Math.PI / 180), 0, true);
+                    bot.setControlState('forward', true);
                     bot.setControlState('jump', true);
                     bot.swingArm('mainhand');
-                    setTimeout(clearControls, 600);
+                    setTimeout(clearControls, 800);
                     break;
 
                 case 'sneakAround':
@@ -158,6 +170,7 @@ function cleanUp() {
     if (afkInterval) clearInterval(afkInterval);
     if (stuckCheckInterval) clearInterval(stuckCheckInterval);
     lastPosition = null;
+    isUnsticking = false;
     if (bot) {
         bot.removeAllListeners();
         bot = null;
