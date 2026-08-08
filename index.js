@@ -19,7 +19,7 @@ const config = {
     host: process.env.SERVER_HOST || 'node-de-free-01.tickhosting.com',
     port: parseInt(process.env.SERVER_PORT || '50589'),
     username: process.env.BOT_USERNAME || 'dma9',
-    version: '1.21.1',
+    version: false,
     auth: process.env.AUTH_TYPE || 'offline'
 };
 
