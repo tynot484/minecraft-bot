@@ -18,7 +18,7 @@ app.listen(PORT, () => console.log(`[WEB SERVER] Running on port ${PORT}`));
 const config = {
     host: process.env.SERVER_HOST || 'node-de-free-01.tickhosting.com',
     port: parseInt(process.env.SERVER_PORT || '50589'),
-    username: process.env.BOT_USERNAME || 'dma9',
+    username: process.env.BOT_USERNAME || 'Ana_Maradhon',
     version: false,
     auth: process.env.AUTH_TYPE || 'offline'
 };
